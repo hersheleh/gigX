@@ -1,0 +1,1 @@
+CREATE TABLE job_data(emails string);
