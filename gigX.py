@@ -1,3 +1,4 @@
+import os
 import feedparser, urllib2
 from bs4 import BeautifulSoup
 import smtplib
@@ -17,14 +18,20 @@ class job_post(object):
     
     # get return email address from current job post
     def get_post_email(self):
-        url_page = urllib2.urlopen(self.link)
-        url_data = url_page.read()
-        url_page.close()
         
-        html_to_parse = BeautifulSoup(url_data)
-        
-        returnemail = html_to_parse.find(id="returnemail")
-        email = returnemail.a.contents
+        try:
+            url_page = urllib2.urlopen(self.link)
+            url_data = url_page.read()
+            url_page.close()
+            
+            html_to_parse = BeautifulSoup(url_data)
+
+            returnemail = html_to_parse.find(id="returnemail")
+
+            email = returnemail.a.contents
+        except:
+            print "Post [%s] doesn't display e-mail" % self.title
+            return None
 
         return email[0]
     
@@ -82,7 +89,7 @@ class job_post_list(object):
                 matches.append(post)
                 
         return matches
-            
+           
     
     def send_notification(self, relevant_posts):
         
@@ -106,9 +113,14 @@ class job_post_list(object):
      
 
     def fetch_emails(self):
-        conn = sqlite3.connect('gigX.db')
+
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        conn = sqlite3.connect(os.path.join(current_dir, 'gigX.db'))
+
         db = conn.cursor()
+
         raw = db.execute("select emails from job_data")
+
         data = raw.fetchall()
         emails = []
         for item in data:
@@ -119,28 +131,36 @@ class job_post_list(object):
         
     def send_email(self, relevant_posts):
         self.sent_emails = self.fetch_emails()
-        
+
         for post in relevant_posts:
-            if post.get_post_email() in self.sent_emails:
-                print post.get_post_email()+" has recieved an email"
-                pass
-            else:
-                post.send_email()
-                print "Sent email to %s" % post.get_post_email()
-                conn = sqlite3.connect('gigX.db')
-                db = conn.cursor()
-                db.execute("insert into job_data(emails) values(?)", [post.get_post_email()])
-                conn.commit()
+            if post.get_post_email() != None:
+                if post.get_post_email() in self.sent_emails:
+                    print post.get_post_email()+" has recieved an email"
+                    pass
+                else:
+                    post.send_email()
+                    print "Sent email to %s" % post.get_post_email()
+
+                    current_dir = os.path.dirname(os.path.abspath(__file__))
+                    conn = sqlite3.connect(os.path.join(current_dir, 'gigX.db'))
+
+                    db = conn.cursor()
+                    db.execute("insert into job_data(emails) values(?)", [post.get_post_email()])
+                    conn.commit()
 
 
 
 if __name__ == '__main__':
-    
+
+    print "Gig X has started ...\n"
     rss_link = "http://losangeles.craigslist.org/cpg/index.rss"
+
 
     la_computer_gigs = job_post_list(rss_link)
 
     website_posts = la_computer_gigs.find_keyword("website")
-    
-    la_computer_gigs.send_email(website_posts)
+    webdesigner = la_computer_gigs.find_keyword("web designer")
 
+    la_computer_gigs.send_email(webdesigner)
+    la_computer_gigs.send_email(website_posts)
+    print "Gig X has ended\n"
