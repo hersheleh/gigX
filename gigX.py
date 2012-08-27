@@ -45,7 +45,7 @@ class job_post(object):
         raw_text = self.make_notification()
 
         msg = MIMEText(raw_text)
-        msg['Subject'] = "Response to your website inquiry"
+        msg['Subject'] = "Craigslist notification"
         msg['From'] = 'grisha@dyrodesign.com'
         msg['To'] = 'standyro@gmail.com, hersheleh@gmail.com'
         
