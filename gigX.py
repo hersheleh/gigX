@@ -40,14 +40,17 @@ class job_post(object):
         return "\r\nTitle: "+self.title+"\nLink: "+self.link+"\nEmail: "+self.get_post_email()+"\nPost Date: "+self.date+"\n\n"
     
 
-    def send_email(self):
+       
 
-        raw_text = self.make_notification()
+        
 
-        msg = MIMEText(raw_text)
-        msg['Subject'] = "Craigslist notification"
-        msg['From'] = 'grisha@dyrodesign.com'
-        msg['To'] = 'standyro@gmail.com, hersheleh@gmail.com'
+    def send_email(self, Subject, From, To, mime_text):
+
+        msg = mime_text
+
+        msg['Subject'] = Subject
+        msg['From'] = From
+        msg['To'] = To
         
         
         mailserver = smtplib.SMTP('mail.dyrodesign.com')
@@ -56,6 +59,7 @@ class job_post(object):
                             ['standyro@gmail.com',
                              'hersheleh@gmail.com'],
                             msg.as_string())
+        mailserver.close()
 
     
 
@@ -129,8 +133,9 @@ class job_post_list(object):
         return emails
 
         
-    def send_email(self, relevant_posts):
+    def send_emails(self, relevant_posts, Subject, From, To, mime_text):
         self.sent_emails = self.fetch_emails()
+        
 
         for post in relevant_posts:
             if post.get_post_email() != None:
@@ -138,9 +143,9 @@ class job_post_list(object):
                     print post.get_post_email()+" has recieved an email"
                     pass
                 else:
-                    post.send_email()
+                    post.send_email(Subject, From, To, mime_text)
                     print "Sent email to %s" % post.get_post_email()
-
+                    
                     current_dir = os.path.dirname(os.path.abspath(__file__))
                     conn = sqlite3.connect(os.path.join(current_dir, 'gigX.db'))
 
@@ -155,12 +160,25 @@ if __name__ == '__main__':
     print "Gig X has started ...\n"
     rss_link = "http://losangeles.craigslist.org/cpg/index.rss"
 
+    Subject = u"\u2605"+" Web Designers"
+    From = "grisha@dyrodesign.com"
+    To = "hersheleh@gmail.com, standyro@gmail.com"
+    
+    html = open('./text.html')
+    html_email = html.read()
+    html.close()
+    
+    msg = MIMEText(html_email, 'html')
+    
 
     la_computer_gigs = job_post_list(rss_link)
-
+    
     website_posts = la_computer_gigs.find_keyword("website")
     webdesigner = la_computer_gigs.find_keyword("web designer")
 
-    la_computer_gigs.send_email(webdesigner)
-    la_computer_gigs.send_email(website_posts)
+    la_computer_gigs.send_emails(webdesigner, Subject, From, To, msg)
+    la_computer_gigs.send_emails(website_posts, Subject, From, To, msg)
+    la_computer_gigs.send_notification(webdesigner, Subject, From, To, msg)
+    la_computer_gigs.send_notification(website, Subject, From, To, msg)
+    
     print "Gig X has ended\n"
