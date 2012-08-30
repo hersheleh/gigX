@@ -37,25 +37,44 @@ class job_post(object):
     
     def make_notification(self):
         
-        return "\r\nTitle: "+self.title+"\nLink: "+self.link+"\nEmail: "+self.get_post_email()+"\nPost Date: "+self.date+"\n\n"
-    
+        if self.get_post_email() != None:
+            return "\r\nTitle: %s \nLink %s \nEmail: %s \nPost Date: %s \n Summary: %s \n\n Email has been sent" % (
+                self.title, self.link, self.get_post_email(), self.date, self.summary)
+                
+        else: 
+            return "\r\nTitle: %s \nLink %s \nEmail: %s \nPost Date: %s \n Summary: %s \n\n Doesn't Display" % (
+                self.title, self.link, "Email Not Displayed", self.date, self.summary)
+        
 
        
+    def notify(self):
+        msg = MIMEText(self.make_notification())
+
+        if self.get_post_email() != None:
+            msg['Subject'] = "%s has recieved an email "% self.title
+        else:
+            msg['Subject'] = "%s doesn't display email "% self.title
+        
+        msg['From'] = 'stan@dyrodesign.com'
+        msg['To'] = 'hersheleh@gmail.com'
+
+        mailserver = smtplib.SMTP('mail.dyrodesign.com')
+        mailserver.login('stan@dyrodesign.com','S2t0a1n2#')
+        mailserver.sendmail('stan@dyrodesign.com',
+                            ['standyro@gmail.com',
+                             'hersheleh@gmail.com'],
+                            msg.as_string())
+        mailserver.close()
 
         
 
-    def send_email(self, Subject, From, To, mime_text):
+    def send_email(self, mime_text):
 
         msg = mime_text
-
-        msg['Subject'] = Subject
-        msg['From'] = From
-        msg['To'] = To
-        
         
         mailserver = smtplib.SMTP('mail.dyrodesign.com')
-        mailserver.login('grisha@dyrodesign.com','ttywXdOPd7gxa0HIzgJA')
-        mailserver.sendmail('grisha@dyrodesign.com',
+        mailserver.login('stan@dyrodesign.com','S2t0a1n2#')
+        mailserver.sendmail('stana@dyrodesign.com',
                             ['standyro@gmail.com',
                              'hersheleh@gmail.com'],
                             msg.as_string())
@@ -103,9 +122,8 @@ class job_post_list(object):
         
         
         msg = MIMEText(raw_text)
-        msg['Subject'] = "These people want websites"
+        msg['Subject'] = "Just a Test"
         msg['From'] = 'grisha@dyrodesign.com'
-        msg['To'] = 'standyro@gmail.com, hersheleh@gmail.com'
         
         
         mailserver = smtplib.SMTP('mail.dyrodesign.com')
@@ -123,7 +141,7 @@ class job_post_list(object):
 
         db = conn.cursor()
 
-        raw = db.execute("select emails from job_data")
+        raw = db.execute("select email from job_data")
 
         data = raw.fetchall()
         emails = []
@@ -133,26 +151,43 @@ class job_post_list(object):
         return emails
 
         
-    def send_emails(self, relevant_posts, Subject, From, To, mime_text):
+    def send_emails(self, relevant_posts):
         self.sent_emails = self.fetch_emails()
-        
 
+        html = open('./dyrodesign-email.html')
+        html_email = html.read()
+        html.close()
+
+        msg = MIMEText(html_email, 'html')
+
+        msg['From'] = "stan@dyrodesign.com"
+        msg['Bcc'] = 'standyro@gmail.com, hersheleh@gmail.com'
+        
+        
+        
         for post in relevant_posts:
             if post.get_post_email() != None:
                 if post.get_post_email() in self.sent_emails:
-                    print post.get_post_email()+" has recieved an email"
+                    print "[%s] has already recieved an email" % post.title
                     pass
                 else:
-                    post.send_email(Subject, From, To, mime_text)
-                    print "Sent email to %s" % post.get_post_email()
+                    del msg['To']
+                    del msg['Subject']
+                    msg['To'] = post.get_post_email()
+                    msg['Subject'] ="%s %s" % (u"\u2605" , post.title) 
+                    post.send_email(msg)
+                    post.notify()
+                    print "Sent email to [%s]" % post.title
                     
                     current_dir = os.path.dirname(os.path.abspath(__file__))
                     conn = sqlite3.connect(os.path.join(current_dir, 'gigX.db'))
 
                     db = conn.cursor()
-                    db.execute("insert into job_data(emails) values(?)", [post.get_post_email()])
+                    db.execute("insert into job_data(title, email, date) values(?,?,?)", 
+                               [post.title, post.get_post_email(), post.date])
                     conn.commit()
-
+            else:
+                post.notify()
 
 
 if __name__ == '__main__':
@@ -160,15 +195,6 @@ if __name__ == '__main__':
     print "Gig X has started ...\n"
     rss_link = "http://losangeles.craigslist.org/cpg/index.rss"
 
-    Subject = u"\u2605"+" Web Designers"
-    From = "grisha@dyrodesign.com"
-    To = "hersheleh@gmail.com, standyro@gmail.com"
-    
-    html = open('./text.html')
-    html_email = html.read()
-    html.close()
-    
-    msg = MIMEText(html_email, 'html')
     
 
     la_computer_gigs = job_post_list(rss_link)
@@ -176,9 +202,7 @@ if __name__ == '__main__':
     website_posts = la_computer_gigs.find_keyword("website")
     webdesigner = la_computer_gigs.find_keyword("web designer")
 
-    la_computer_gigs.send_emails(webdesigner, Subject, From, To, msg)
-    la_computer_gigs.send_emails(website_posts, Subject, From, To, msg)
-    la_computer_gigs.send_notification(webdesigner, Subject, From, To, msg)
-    la_computer_gigs.send_notification(website, Subject, From, To, msg)
+    la_computer_gigs.send_emails(webdesigner)
+    la_computer_gigs.send_emails(website_posts)
     
     print "Gig X has ended\n"
