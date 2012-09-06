@@ -1,4 +1,10 @@
-import os
+
+# This module contains two classes. job_post and job_post list.
+# They are meant to parse craigslist. posts
+
+
+
+import os, re
 import feedparser, urllib2
 from bs4 import BeautifulSoup
 import smtplib
@@ -26,9 +32,10 @@ class job_post(object):
             
             html_to_parse = BeautifulSoup(url_data)
 
-            returnemail = html_to_parse.find(id="returnemail")
+            mail = html_to_parse.find(href=re.compile("mailto*"))
 
-            email = returnemail.a.contents
+            email = mail.contents
+            
         except:
             print "Post [%s] doesn't display e-mail" % self.title
             return None
@@ -48,7 +55,14 @@ class job_post(object):
 
        
     def notify(self):
-        msg = MIMEText(self.make_notification())
+        try:
+            msg = MIMEText(self.make_notification())
+        except:
+            print "Can't encode [%s] into emil retrying..." % self.title
+            utf_8_encoded_msg = self.make_notification().encode('UTF-8')
+            msg = MIMEText(utf_8_encoded_msg)
+            print "success"
+
 
         if self.get_post_email() != None:
             msg['Subject'] = "Email sent to %s "% self.title
