@@ -51,16 +51,16 @@ class job_post(object):
         msg = MIMEText(self.make_notification())
 
         if self.get_post_email() != None:
-            msg['Subject'] = "%s has recieved an email "% self.title
+            msg['Subject'] = "Email sent to %s "% self.title
         else:
             msg['Subject'] = "%s doesn't display email "% self.title
         
-        msg['From'] = 'stan@dyrodesign.com'
+        msg['From'] = 'Dyrodesign <contact@dyrodesign.com>'
         msg['To'] = 'hersheleh@gmail.com'
 
         mailserver = smtplib.SMTP('mail.dyrodesign.com')
-        mailserver.login('stan@dyrodesign.com','S2t0a1n2#')
-        mailserver.sendmail('stan@dyrodesign.com',
+        mailserver.login('contact@dyrodesign.com','6WAnKzsdE4w4Y2R4ng9p')
+        mailserver.sendmail('contact@dyrodesign.com',
                             ['standyro@gmail.com',
                              'hersheleh@gmail.com'],
                             msg.as_string())
@@ -73,10 +73,9 @@ class job_post(object):
         msg = mime_text
         
         mailserver = smtplib.SMTP('mail.dyrodesign.com')
-        mailserver.login('stan@dyrodesign.com','S2t0a1n2#')
-        mailserver.sendmail('stana@dyrodesign.com',
-                            ['standyro@gmail.com',
-                             'hersheleh@gmail.com'],
+        mailserver.login('contact@dyrodesign.com','6WAnKzsdE4w4Y2R4ng9p')
+        mailserver.sendmail('contact@dyrodesign.com',
+                            [self.get_post_email()],
                             msg.as_string())
         mailserver.close()
 
@@ -153,17 +152,16 @@ class job_post_list(object):
         
     def send_emails(self, relevant_posts):
         self.sent_emails = self.fetch_emails()
-
-        html = open('./dyrodesign-email.html')
+        
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        html = open(os.path.join(current_dir,'dyrodesign-email.html'))
         html_email = html.read()
         html.close()
 
         msg = MIMEText(html_email, 'html')
 
-        msg['From'] = "stan@dyrodesign.com"
+        msg['From'] = "Dyrodesign <contact@dyrodesign.com>"
         msg['Bcc'] = 'standyro@gmail.com, hersheleh@gmail.com'
-        
-        
         
         for post in relevant_posts:
             if post.get_post_email() != None:
@@ -186,23 +184,28 @@ class job_post_list(object):
                     db.execute("insert into job_data(title, email, date) values(?,?,?)", 
                                [post.title, post.get_post_email(), post.date])
                     conn.commit()
-            else:
-                post.notify()
+
 
 
 if __name__ == '__main__':
 
     print "Gig X has started ...\n"
-    rss_link = "http://losangeles.craigslist.org/cpg/index.rss"
-
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    raw = open(os.path.join(current_dir,'craigslist-california-list.txt'))
+    california_str = raw.read()
     
-
-    la_computer_gigs = job_post_list(rss_link)
+    california_list = california_str.split("\n")
     
-    website_posts = la_computer_gigs.find_keyword("website")
-    webdesigner = la_computer_gigs.find_keyword("web designer")
-
-    la_computer_gigs.send_emails(webdesigner)
-    la_computer_gigs.send_emails(website_posts)
+    for city in california_list:
+        print "Parsing %s feed" % city
+        rss_link = "http://%s.craigslist.org/cpg/index.rss" % city
+        computer_gigs =  job_post_list(rss_link)
     
+        website_posts = computer_gigs.find_keyword("website")
+        webdesigner = computer_gigs.find_keyword("web designer")
+
+        computer_gigs.send_emails(webdesigner)
+        computer_gigs.send_emails(website_posts)
+    
+        
     print "Gig X has ended\n"
