@@ -5,7 +5,6 @@ import smtplib
 from email.mime.text import MIMEText
 import sqlite3
 import sys
-from sys import argv
 
 
 class job_post(object):
@@ -214,7 +213,7 @@ class job_post_list(object):
 
 
 if __name__ == '__main__':
-    rss_link = sys.argv[0]
+    rss_link = sys.argv[1]
     print rss_link
     print "Gig X has started ...\n"
     print "we are testing now!!"
