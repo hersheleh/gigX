@@ -1,15 +1,11 @@
-
-# This module contains two classes. job_post and job_post list.
-# They are meant to parse craigslist. posts
-
-
-
-import os, re
+import os, re, traceback
 import feedparser, urllib2
 from bs4 import BeautifulSoup
 import smtplib
 from email.mime.text import MIMEText
 import sqlite3
+import sys
+from sys import argv
 
 
 class job_post(object):
@@ -23,6 +19,21 @@ class job_post(object):
         
     
     # get return email address from current job post
+
+    def get_post_body(self):
+
+        url_page = urllib2.urlopen(self.link)
+    
+        url_data = url_page.read()
+        url_page.close()
+        
+        html_to_parse = BeautifulSoup(url_data)
+        
+        body = html_to_parse.find(id="userbody")
+
+        return body
+    
+
     def get_post_email(self):
         
         try:
@@ -43,40 +54,42 @@ class job_post(object):
         return email[0]
     
     def make_notification(self):
+
+        
         
         if self.get_post_email() != None:
             return "\r\nTitle: %s \nLink %s \nEmail: %s \nPost Date: %s \n Summary: %s \n\n Email has been sent" % (
-                self.title, self.link, self.get_post_email(), self.date, self.summary)
+                self.title, self.link, self.get_post_email(), self.date, self.get_post_body())
                 
         else: 
             return "\r\nTitle: %s \nLink %s \nEmail: %s \nPost Date: %s \n Summary: %s \n\n Doesn't Display" % (
-                self.title, self.link, "Email Not Displayed", self.date, self.summary)
+                self.title, self.link, "Email Not Displayed", self.date, self.get_post_body())
         
 
        
     def notify(self):
+
         try:
-            msg = MIMEText(self.make_notification())
+            msg = MIMEText(self.make_notification(), 'html')
         except:
             print "Can't encode [%s] into emil retrying..." % self.title
             utf_8_encoded_msg = self.make_notification().encode('UTF-8')
-            msg = MIMEText(utf_8_encoded_msg)
+            msg = MIMEText(utf_8_encoded_msg, 'html')
             print "success"
 
 
         if self.get_post_email() != None:
-            msg['Subject'] = "Email sent to %s "% self.title
+            msg['Subject'] = "Job posting - Email sent to %s "% self.title
         else:
-            msg['Subject'] = "%s doesn't display email "% self.title
+            msg['Subject'] = "Job posting - %s doesn't display email "% self.title
         
-        msg['From'] = 'Dyrodesign <contact@dyrodesign.com>'
-        msg['To'] = 'hersheleh@gmail.com'
+        msg['From'] = 'Dyrodesign <stan@dyrodesign.com>'
+        msg['To'] = 'standyro@gmail.com'
 
         mailserver = smtplib.SMTP('mail.dyrodesign.com')
-        mailserver.login('contact@dyrodesign.com','6WAnKzsdE4w4Y2R4ng9p')
-        mailserver.sendmail('contact@dyrodesign.com',
-                            ['standyro@gmail.com',
-                             'hersheleh@gmail.com'],
+        mailserver.login('stan@dyrodesign.com','S2t0a1n2#')
+        mailserver.sendmail('stan@dyrodesign.com',
+			    'standyro@gmail.com',
                             msg.as_string())
         mailserver.close()
 
@@ -87,8 +100,8 @@ class job_post(object):
         msg = mime_text
         
         mailserver = smtplib.SMTP('mail.dyrodesign.com')
-        mailserver.login('contact@dyrodesign.com','6WAnKzsdE4w4Y2R4ng9p')
-        mailserver.sendmail('contact@dyrodesign.com',
+        mailserver.login('stan@dyrodesign.com','S2t0a1n2#')
+        mailserver.sendmail('stan@dyrodesign.com',
                             [self.get_post_email()],
                             msg.as_string())
         mailserver.close()
@@ -136,14 +149,12 @@ class job_post_list(object):
         
         msg = MIMEText(raw_text)
         msg['Subject'] = "Just a Test"
-        msg['From'] = 'grisha@dyrodesign.com'
+        msg['From'] = 'stan@dyrodesign.com'
         
         
         mailserver = smtplib.SMTP('mail.dyrodesign.com')
-        mailserver.login('grisha@dyrodesign.com','ttywXdOPd7gxa0HIzgJA')
-        mailserver.sendmail('grisha@dyrodesign.com',
-                            ['standyro@gmail.com',
-                             'hersheleh@gmail.com'],
+        mailserver.login('stan@dyrodesign.com','S2t0a1n2#')
+        mailserver.sendmail('stan@dyrodesign.com',
                             msg.as_string())
      
 
@@ -171,17 +182,19 @@ class job_post_list(object):
         html = open(os.path.join(current_dir,'dyrodesign-email.html'))
         html_email = html.read()
         html.close()
-
         msg = MIMEText(html_email, 'html')
 
         msg['From'] = "Dyrodesign <contact@dyrodesign.com>"
-        msg['Bcc'] = 'standyro@gmail.com, hersheleh@gmail.com'
         
         for post in relevant_posts:
             if post.get_post_email() != None:
                 if post.get_post_email() in self.sent_emails:
-                    print "[%s] has already recieved an email" % post.title
-                    pass
+                    try:
+                        print "[ %s ] has already recieved an email" % post.title
+                    except:
+                        title_enc = post.title.encode('UTF-8')
+                        print "[ %s ] is trying utf-8" % title_enc
+
                 else:
                     del msg['To']
                     del msg['Subject']
@@ -200,26 +213,19 @@ class job_post_list(object):
                     conn.commit()
 
 
-
 if __name__ == '__main__':
-
+    rss_link = sys.argv[0]
+    print rss_link
     print "Gig X has started ...\n"
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    raw = open(os.path.join(current_dir,'craigslist-california-list.txt'))
-    california_str = raw.read()
-    
-    california_list = california_str.split("\n")
-    
-    for city in california_list:
-        print "Parsing %s feed" % city
-        rss_link = "http://%s.craigslist.org/cpg/index.rss" % city
+    print "we are testing now!!"
+    try:
+    	print "Parsing %s feed" % rss_link 
         computer_gigs =  job_post_list(rss_link)
-    
-        website_posts = computer_gigs.find_keyword("website")
-        webdesigner = computer_gigs.find_keyword("web designer")
+	computer = computer_gigs.find_keyword("")
+        computer_gigs.send_emails(computer)
 
-        computer_gigs.send_emails(webdesigner)
-        computer_gigs.send_emails(website_posts)
-    
+    except Exception,e:
+        print traceback.format_exc()
+        print str(e)
         
     print "Gig X has ended\n"
